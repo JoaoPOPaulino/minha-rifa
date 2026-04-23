@@ -12,6 +12,46 @@ interface ModalProps {
   onConfirmar: (dados: CompradorData) => void;
 }
 
+function normalizePhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.slice(0, 11);
+}
+
+function formatPhone(value: string) {
+  const digits = normalizePhone(value);
+
+  if (!digits) return "";
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  }
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+function isValidPhone(value: string) {
+  const digits = normalizePhone(value);
+  return digits.length === 10 || digits.length === 11;
+}
+
+function normalizeName(value: string) {
+  return value
+    .replace(/\d/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trimStart();
+}
+
+function isValidName(value: string) {
+  const trimmed = value.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const hasNumber = /\d/.test(trimmed);
+
+  return trimmed.length >= 5 && words.length >= 2 && !hasNumber;
+}
+
 export const ModalCheckout: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -47,15 +87,32 @@ export const ModalCheckout: React.FC<ModalProps> = ({
 
   const validate = (): boolean => {
     const errs: Partial<CompradorData> = {};
-    if (!formData.nome.trim()) errs.nome = "Informe seu nome";
-    if (!formData.telefone.trim()) errs.telefone = "Informe seu WhatsApp";
+
+    if (!formData.nome.trim()) {
+      errs.nome = "Informe seu nome completo";
+    } else if (!isValidName(formData.nome)) {
+      errs.nome = "Digite nome e sobrenome, sem números";
+    }
+
+    if (!formData.telefone.trim()) {
+      errs.telefone = "Informe seu WhatsApp";
+    } else if (!isValidPhone(formData.telefone)) {
+      errs.telefone = "Informe um WhatsApp válido com DDD";
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) onConfirmar(formData);
+
+    if (validate()) {
+      onConfirmar({
+        nome: formData.nome.trim(),
+        telefone: normalizePhone(formData.telefone),
+      });
+    }
   };
 
   return (
@@ -139,7 +196,10 @@ export const ModalCheckout: React.FC<ModalProps> = ({
                 placeholder="João Pedro Silva"
                 value={formData.nome}
                 onChange={(e) => {
-                  setFormData({ ...formData, nome: e.target.value });
+                  setFormData({
+                    ...formData,
+                    nome: normalizeName(e.target.value),
+                  });
                   if (errors.nome) setErrors({ ...errors, nome: undefined });
                 }}
               />
@@ -156,16 +216,20 @@ export const ModalCheckout: React.FC<ModalProps> = ({
                 required
                 type="tel"
                 autoComplete="tel"
-                inputMode="tel"
+                inputMode="numeric"
+                maxLength={15}
                 className={`w-full rounded-2xl border px-4 py-3 text-base outline-none transition-colors sm:text-sm ${
                   errors.telefone
                     ? "border-red-400 bg-red-50 focus:border-red-500"
                     : "border-slate-300 bg-white focus:border-blue-500"
                 }`}
                 placeholder="(63) 99999-9999"
-                value={formData.telefone}
+                value={formatPhone(formData.telefone)}
                 onChange={(e) => {
-                  setFormData({ ...formData, telefone: e.target.value });
+                  setFormData({
+                    ...formData,
+                    telefone: normalizePhone(e.target.value),
+                  });
                   if (errors.telefone) {
                     setErrors({ ...errors, telefone: undefined });
                   }

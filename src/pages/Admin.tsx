@@ -37,6 +37,46 @@ interface EditFormData {
   telefone: string;
 }
 
+function normalizePhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.slice(0, 11);
+}
+
+function formatPhone(value: string) {
+  const digits = normalizePhone(value);
+
+  if (!digits) return "";
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  }
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+function isValidPhone(value: string) {
+  const digits = normalizePhone(value);
+  return digits.length === 10 || digits.length === 11;
+}
+
+function normalizeName(value: string) {
+  return value
+    .replace(/\d/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trimStart();
+}
+
+function isValidName(value: string) {
+  const trimmed = value.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const hasNumber = /\d/.test(trimmed);
+
+  return trimmed.length >= 5 && words.length >= 2 && !hasNumber;
+}
+
 export const Admin: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
@@ -148,11 +188,21 @@ export const Admin: React.FC = () => {
     setManualSuccess("");
 
     const nome = manualForm.nome.trim();
-    const telefone = manualForm.telefone.trim();
+    const telefone = normalizePhone(manualForm.telefone);
     const numerosSelecionados = parseNumeros(manualForm.numerosTexto);
 
     if (!nome) {
       setManualError("Informe o nome do comprador.");
+      return;
+    }
+
+    if (!isValidName(nome)) {
+      setManualError("Digite nome e sobrenome, sem números.");
+      return;
+    }
+
+    if (telefone && !isValidPhone(telefone)) {
+      setManualError("Informe um telefone válido com DDD.");
       return;
     }
 
@@ -288,7 +338,9 @@ export const Admin: React.FC = () => {
     setEditForm({
       nome: item.comprador_dados?.nome || item.comprador?.nome || "",
       telefone:
-        item.comprador_dados?.telefone || item.comprador?.telefone || "",
+        normalizePhone(
+          item.comprador_dados?.telefone || item.comprador?.telefone || "",
+        ) || "",
     });
   };
 
@@ -305,10 +357,20 @@ export const Admin: React.FC = () => {
     if (!editingItem) return;
 
     const nome = editForm.nome.trim();
-    const telefone = editForm.telefone.trim();
+    const telefone = normalizePhone(editForm.telefone);
 
     if (!nome) {
       setEditError("Informe o nome do comprador.");
+      return;
+    }
+
+    if (!isValidName(nome)) {
+      setEditError("Digite nome e sobrenome, sem números.");
+      return;
+    }
+
+    if (telefone && !isValidPhone(telefone)) {
+      setEditError("Informe um telefone válido com DDD.");
       return;
     }
 
@@ -622,7 +684,7 @@ export const Admin: React.FC = () => {
                     onChange={(e) =>
                       setManualForm((prev) => ({
                         ...prev,
-                        nome: e.target.value,
+                        nome: normalizeName(e.target.value),
                       }))
                     }
                     placeholder="João Pedro"
@@ -635,12 +697,14 @@ export const Admin: React.FC = () => {
                     Telefone / WhatsApp (opcional)
                   </label>
                   <input
-                    type="text"
-                    value={manualForm.telefone}
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={15}
+                    value={formatPhone(manualForm.telefone)}
                     onChange={(e) =>
                       setManualForm((prev) => ({
                         ...prev,
-                        telefone: e.target.value,
+                        telefone: normalizePhone(e.target.value),
                       }))
                     }
                     placeholder="(63) 99999-9999"
@@ -971,7 +1035,10 @@ export const Admin: React.FC = () => {
                   type="text"
                   value={editForm.nome}
                   onChange={(e) =>
-                    setEditForm((prev) => ({ ...prev, nome: e.target.value }))
+                    setEditForm((prev) => ({
+                      ...prev,
+                      nome: normalizeName(e.target.value),
+                    }))
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   placeholder="Nome do comprador"
@@ -983,12 +1050,14 @@ export const Admin: React.FC = () => {
                   Telefone / WhatsApp (opcional)
                 </label>
                 <input
-                  type="text"
-                  value={editForm.telefone}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={15}
+                  value={formatPhone(editForm.telefone)}
                   onChange={(e) =>
                     setEditForm((prev) => ({
                       ...prev,
-                      telefone: e.target.value,
+                      telefone: normalizePhone(e.target.value),
                     }))
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
