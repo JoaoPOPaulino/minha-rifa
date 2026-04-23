@@ -1,23 +1,16 @@
-// src/pages/Home.tsx
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../config/firebase";
+import { db } from "../config/firebase";
 import { GridNumeros } from "../components/GridNumeros";
 import { ModalCheckout } from "../components/ModalCheckout";
 import type { NumeroRifa } from "../domain/entities/RifaTypes";
 
 const LOTE_ID = "lote_01";
-const PRECO_UNITARIO = 10;
+const PRECO_UNITARIO = 100;
 const TOTAL_NUMEROS = 200;
+const WHATSAPP_NUMERO = "5563981113658";
 
 type FilterType = "todos" | "disponivel";
-
-interface PixResponse {
-  sucesso: boolean;
-  qr_code_base64: string;
-  qr_code_copia_cola: string;
-}
 
 interface CompradorData {
   nome: string;
@@ -30,12 +23,6 @@ export const Home = () => {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [pixData, setPixData] = useState<{
-    qr_code_base64: string;
-    qr_code_copia_cola: string;
-  } | null>(null);
-  const [filter, setFilter] = useState<FilterType>("todos");
 
   useEffect(() => {
     const q = query(collection(db, "numeros"), where("lote_id", "==", LOTE_ID));
@@ -74,6 +61,8 @@ export const Home = () => {
     ((stats.pagos + stats.reservados) / TOTAL_NUMEROS) * 100,
   );
 
+  const [filter, setFilter] = useState<FilterType>("todos");
+
   const filteredNumeros = useMemo(() => {
     if (filter === "disponivel") {
       return numeros.filter((n) => n.status === "disponivel");
@@ -88,47 +77,38 @@ export const Home = () => {
     );
   };
 
-  const handleConfirmarReserva = async (dadosComprador: CompradorData) => {
-    setIsProcessing(true);
+  const handleEnviarReserva = (dadosComprador: CompradorData) => {
+    const numerosOrdenados = [...selecionados].sort((a, b) => a - b);
+    const totalSelecionado = numerosOrdenados.length * PRECO_UNITARIO;
 
-    try {
-      const gerarPixFn = httpsCallable<
-        {
-          numeros: number[];
-          comprador: CompradorData;
-          lote_id: string;
-        },
-        PixResponse
-      >(functions, "gerarPix");
+    const mensagem = [
+      "Olá! Quero reservar números da rifa.",
+      "",
+      `Nome: ${dadosComprador.nome}`,
+      `WhatsApp: ${dadosComprador.telefone}`,
+      `Números: ${numerosOrdenados
+        .map((n) => n.toString().padStart(2, "0"))
+        .join(", ")}`,
+      `Quantidade: ${numerosOrdenados.length}`,
+      `Total: ${totalSelecionado.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })}`,
+    ].join("\n");
 
-      const response = await gerarPixFn({
-        numeros: selecionados,
-        comprador: dadosComprador,
-        lote_id: LOTE_ID,
-      });
+    const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
+      mensagem,
+    )}`;
 
-      const data = response.data;
-
-      if (data.sucesso) {
-        setPixData({
-          qr_code_base64: data.qr_code_base64,
-          qr_code_copia_cola: data.qr_code_copia_cola,
-        });
-        setSelecionados([]);
-      }
-    } catch (error) {
-      console.error("Erro ao gerar PIX:", error);
-      alert("Erro ao processar o pagamento. Tente novamente.");
-    } finally {
-      setIsProcessing(false);
-    }
+    window.open(url, "_blank");
+    setIsModalOpen(false);
   };
 
   const totalSelecionado = selecionados.length * PRECO_UNITARIO;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-200/70">
         <div className="section-shell flex min-h-screen items-center justify-center px-4">
           <div className="glass-panel w-full max-w-md rounded-[28px] px-8 py-10 text-center">
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
@@ -149,7 +129,7 @@ export const Home = () => {
 
   if (errorMessage) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-200/70">
         <div className="section-shell flex min-h-screen items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-[28px] border border-red-100 bg-white p-8 text-center shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-500">
@@ -174,15 +154,15 @@ export const Home = () => {
   }
 
   return (
-    <div className="min-h-screen pb-40">
+    <div className="min-h-screen bg-slate-200/70 pb-40">
       <header className="section-shell pt-4 sm:pt-6">
         <div className="glass-panel overflow-hidden rounded-[28px]">
           <div className="relative px-5 py-6 sm:px-8 sm:py-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.16),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.82),rgba(239,246,255,0.9))]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.18),transparent_28%),linear-gradient(135deg,rgba(248,250,252,0.84),rgba(226,236,248,0.92))]" />
             <div className="relative flex flex-col gap-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 shadow-[0_16px_32px_rgba(37,99,235,0.28)]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-blue-600 to-blue-400 shadow-[0_16px_32px_rgba(37,99,235,0.28)]">
                     <svg
                       width="24"
                       height="24"
@@ -199,14 +179,14 @@ export const Home = () => {
 
                   <div>
                     <span className="inline-flex rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
-                      Rifa beneficente
+                      Rifa-Gilvane
                     </span>
                     <h1 className="mt-3 text-3xl font-extrabold sm:text-5xl">
                       Escolha seus números e participe agora
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                      Reserve seus números em segundos, pague via PIX e
-                      acompanhe a disponibilidade em tempo real.
+                      Escolha seus números e envie sua reserva direto no
+                      WhatsApp.
                     </p>
                   </div>
                 </div>
@@ -249,7 +229,7 @@ export const Home = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 p-4 text-white shadow-[0_16px_32px_rgba(37,99,235,0.25)]">
+                <div className="rounded-2xl bg-linear-to-br from-blue-600 to-blue-500 p-4 text-white shadow-[0_16px_32px_rgba(37,99,235,0.25)]">
                   <p className="text-xs uppercase tracking-[0.18em] text-blue-100">
                     Progresso
                   </p>
@@ -270,7 +250,7 @@ export const Home = () => {
 
                 <div className="h-3 overflow-hidden rounded-full bg-white/80">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 transition-all duration-700"
+                    className="h-full rounded-full bg-linear-to-r from-blue-600 via-sky-500 to-cyan-400 transition-all duration-700"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -374,9 +354,9 @@ export const Home = () => {
 
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)] transition hover:brightness-105"
+                className="rounded-2xl bg-linear-to-r from-blue-600 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)] transition hover:brightness-105"
               >
-                Reservar agora
+                Enviar reserva
               </button>
             </div>
           </div>
@@ -385,14 +365,9 @@ export const Home = () => {
 
       <ModalCheckout
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setPixData(null);
-        }}
+        onClose={() => setIsModalOpen(false)}
         selecionados={selecionados}
-        onConfirmar={handleConfirmarReserva}
-        isProcessing={isProcessing}
-        pixData={pixData}
+        onConfirmar={handleEnviarReserva}
       />
     </div>
   );

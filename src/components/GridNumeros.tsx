@@ -40,7 +40,7 @@ export const GridNumeros: React.FC<GridProps> = ({
                 ? "border-white/70 bg-white text-slate-700 shadow-[0_8px_24px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                 : "",
               isSelecionado
-                ? "scale-[1.03] border-blue-600 bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-[0_16px_30px_rgba(37,99,235,0.3)]"
+                ? "scale-[1.03] border-blue-600 bg-linear-to-br from-blue-600 to-blue-500 text-white shadow-[0_16px_30px_rgba(37,99,235,0.3)]"
                 : "",
             ].join(" ")}
           >
