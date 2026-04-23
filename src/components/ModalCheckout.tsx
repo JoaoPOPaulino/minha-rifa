@@ -38,7 +38,7 @@ export const ModalCheckout: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
-  const total = selecionados.length * 10;
+  const total = selecionados.length * 100;
   const totalFmt = total.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
